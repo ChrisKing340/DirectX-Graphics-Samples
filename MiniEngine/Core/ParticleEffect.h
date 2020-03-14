@@ -27,6 +27,11 @@ public:
     float GetElapsedTime(){ return m_ElapsedTime; }
     void Reset();
 
+    // Assignments
+    void SetPostion(const XMFLOAT3 emitPosWIn) { m_EffectProperties.EmitProperties.EmitPosW = emitPosWIn; }
+    void SetEmitSpeed(const float f) { m_EffectProperties.EmitProperties.EmitSpeed = f; }
+    void SetLifeTimeExpired() { m_ElapsedTime = m_EffectProperties.TotalActiveLifetime; }
+
 private:
 
     StructuredBuffer m_StateBuffers[2];

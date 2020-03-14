@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):    Alex Nankervis
+// Author(s):	Alex Nankervis
 //
 
 #include "ModelViewerRS.hlsli"
@@ -26,29 +26,40 @@ struct VSOutput
     sample float3 bitangent : bitangent;
 };
 
-Texture2D<float3> texDiffuse        : register(t0);
-Texture2D<float3> texSpecular        : register(t1);
-//Texture2D<float4> texEmissive        : register(t2);
-Texture2D<float3> texNormal            : register(t3);
-//Texture2D<float4> texLightmap        : register(t4);
-//Texture2D<float4> texReflection    : register(t5);
-Texture2D<float> texSSAO            : register(t64);
-Texture2D<float> texShadow            : register(t65);
+Texture2D<float3> texDiffuse		: register(t0);
+Texture2D<float3> texSpecular		: register(t1);
+//Texture2D<float4> texEmissive		: register(t2);
+Texture2D<float3> texNormal			: register(t3);
+//Texture2D<float4> texLightmap		: register(t4);
+//Texture2D<float4> texReflection	: register(t5);
+Texture2D<float> texSSAO			: register(t64);
+Texture2D<float> texShadow			: register(t65);
 
 StructuredBuffer<LightData> lightBuffer : register(t66);
 Texture2DArray<float> lightShadowArrayTex : register(t67);
 ByteAddressBuffer lightGrid : register(t68);
+ByteAddressBuffer lightGridBitMask : register(t69);
 
 cbuffer PSConstants : register(b0)
 {
-    float3 SunDirection;
-    float3 SunColor;
-    float3 AmbientColor;
-    float4 ShadowTexelSize;
+	float3 SunDirection; // normalized on input
+	float3 Isun; // sun light intensity
+	float3 Ia;
 
-    float4 InvTileDim;
-    uint4 TileCount;
-    uint4 FirstLightIndex;
+	float3 mtlAmbientColor; // ambient strength reflected back (used)
+	float3 mtlDiffuseColor; // surface diffusion reflected back (used)
+	float3 mtlSpecularColor; // gloss color (used)
+	float3 mtlEmissiveColor; // radiant
+	float3 mtlTransparentColor; // light passing through a transparent surface is multiplied by this filter color
+	float mtlIndexOfRefraction; // 0.001 to 10; 1.0 means that light does not bend, glass has value 1.5
+	float mtlSpecularStrength; // exponent 0 to 1000, shininess / gloss (used)
+	float mtlDissolved; // 0 transparent to 1 opaque
+
+	float2 InvTileDim;
+	uint2 TileCount;
+	uint2 FirstLightIndex; // [0] first cone light, [1] first cone shadowed light
+	uint FrameIndexMod2; // not used in PS ???? FrameIndex
+	float ShadowTexelSize; // 1.0 / g_ShadowBuffer.GetWidth()
 }
 
 SamplerState sampler0 : register(s0);

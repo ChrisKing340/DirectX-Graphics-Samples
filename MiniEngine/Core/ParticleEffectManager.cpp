@@ -93,6 +93,8 @@ namespace ParticleEffects
     
     UINT s_ReproFrame = 0;//201;
     RandomNumberGenerator s_RNG;
+
+    uint32_t gParticleEffectInstanceCounterID = 0;
 }
 
 struct CBChangesPerView
@@ -594,11 +596,15 @@ EffectHandle ParticleEffects::PreLoadEffectResources( ParticleEffectProperties& 
 }
 
 //Returns index into Active
-EffectHandle ParticleEffects::InstantiateEffect( EffectHandle effectHandle )
+EffectInstance ParticleEffects::InstantiateEffect( EffectHandle effectHandle )
 {
     if (!s_InitComplete || effectHandle >= ParticleEffectsPool.size() || effectHandle < 0)
-        return EFFECTS_ERROR;
-    
+    {
+        EffectInstance rtn;
+        rtn.indexToPool = EFFECTS_ERROR;
+        return rtn;
+    }
+
     ParticleEffect* effect = ParticleEffectsPool[effectHandle].get();
     if (effect != NULL)
     {
@@ -608,18 +614,28 @@ EffectHandle ParticleEffects::InstantiateEffect( EffectHandle effectHandle )
         s_InstantiateEffectFromPoolMutex.unlock();
     }
     else
-        return EFFECTS_ERROR;
+    {
+        EffectInstance rtn;
+        rtn.indexToPool = EFFECTS_ERROR;
+        return rtn;
+    }
 
-    EffectHandle index = (EffectHandle)ParticleEffectsActive.size() - 1;
-    return index;
-    
+    EffectInstance rtn;
+    rtn.indexToPool = effectHandle;
+    rtn.indexToActive = (EffectHandle)ParticleEffectsActive.size() - 1;
+    rtn.instanceID = gParticleEffectInstanceCounterID++;
+    return rtn;
 }
 
 //Returns index into Active
-EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effectProperties )
+EffectInstance ParticleEffects::InstantiateEffect( ParticleEffectProperties& effectProperties )
 {
     if (!s_InitComplete)
-        return EFFECTS_ERROR;
+    {
+        EffectInstance rtn;
+        rtn.indexToPool = EFFECTS_ERROR;
+        return rtn;
+    }
 
     static std::mutex s_InstantiateNewEffectMutex;
     s_InstantiateNewEffectMutex.lock();
@@ -631,7 +647,12 @@ EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effec
 
     EffectHandle index = (EffectHandle)ParticleEffectsActive.size() - 1;
     ParticleEffectsActive[index]->LoadDeviceResources(Graphics::g_Device);
-    return index;    
+
+    EffectInstance rtn;
+    rtn.indexToPool = (EffectHandle)ParticleEffectsPool.size() - 1;
+    rtn.indexToActive = index;
+    rtn.instanceID = gParticleEffectInstanceCounterID++;
+    return rtn;
 }
 
 //---------------------------------------------------------------------
@@ -772,19 +793,71 @@ void ParticleEffects::ClearAll()
     TextureNameArray.clear();
 }
 
-void ParticleEffects::ResetEffect(EffectHandle EffectID)
+void ParticleEffects::ClearActive()
 {
-    if (!s_InitComplete || ParticleEffectsActive.size() == 0 || PauseSim || EffectID >= ParticleEffectsActive.size())
+    ParticleEffectsActive.clear();
+}
+
+void ParticleEffects::ResetEffect(EffectInstance &EffectID)
+{
+    if (!s_InitComplete || PauseSim) return;
+    if (ParticleEffectsActive.size() == 0 || EffectID.indexToActive >= ParticleEffectsActive.size() || EffectID.instanceID < 0)
+    {
+        EffectID.indexToActive = -1;
         return;
-    
-    ParticleEffectsActive[EffectID]->Reset();
+    }
+
+    ParticleEffectsActive[EffectID.indexToActive]->Reset();
 }
 
 
-float ParticleEffects::GetCurrentLife(EffectHandle EffectID)
+float ParticleEffects::GetCurrentLife(EffectInstance &EffectID)
 {
-    if (!s_InitComplete || ParticleEffectsActive.size() == 0 || PauseSim || EffectID >= ParticleEffectsActive.size())
-        return -1.0;
-    
-    return ParticleEffectsActive[EffectID]->GetElapsedTime();
+    if (!s_InitComplete || PauseSim) return -1.0f;
+    if (ParticleEffectsActive.size() == 0 || EffectID.indexToActive >= ParticleEffectsActive.size() || EffectID.instanceID < 0)
+    {
+        EffectID.indexToActive = -1;
+        return -1.0f;
+    }
+
+    return ParticleEffectsActive[EffectID.indexToActive]->GetElapsedTime();
+}
+
+//---------------------------------------------------------------------
+//
+//	Added functionality
+//
+//---------------------------------------------------------------------
+
+// DeActivateEffect from active pool by setting time to expired and allowing ParticleEffects::Update(...) to delete it
+void ParticleEffects::DeActivateEffect(EffectInstance& EffectID)
+{
+    if (!s_InitComplete || EffectID.indexToActive >= ParticleEffectsActive.size() || EffectID.indexToActive < 0)
+        return;
+
+    ParticleEffectsActive[EffectID.indexToActive]->SetLifeTimeExpired();
+}
+
+uint32_t ParticleEffects::IsActive(EffectHandle poolEffectID)
+{
+    ParticleEffect* effect = ParticleEffects::GetEffect(poolEffectID);
+    if (effect == nullptr) return -1;
+
+    for (UINT i = 0; i < ParticleEffectsActive.size(); ++i)
+    {
+        if (ParticleEffectsActive[i] == effect)
+            return i;
+    }
+    return -1;
+}
+
+// from effect pool (type)
+ParticleEffect* ParticleEffects::GetEffect(EffectHandle effectType)
+{
+    if (!s_InitComplete || effectType >= ParticleEffectsPool.size() || effectType < 0)
+        return nullptr;
+
+    ParticleEffect* effect = ParticleEffectsPool[effectType].get();
+
+    return effect;
 }

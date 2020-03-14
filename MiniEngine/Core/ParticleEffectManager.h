@@ -30,13 +30,27 @@ namespace ParticleEffects
     void Shutdown();
     void ClearAll();
     typedef uint32_t EffectHandle;
+    struct EffectInstance
+    {
+        EffectHandle indexToPool = -1; // effect type
+        uint32_t instanceID = -1; // unique ID
+        uint32_t indexToActive = -1; // active pool vector index (auto deletes in Updat(...), so maybe invalid); set to -1 when instance deletes
+    };
     EffectHandle PreLoadEffectResources( ParticleEffectProperties& effectProperties );
-    EffectHandle InstantiateEffect( EffectHandle effectHandle );
-    EffectHandle InstantiateEffect( ParticleEffectProperties& effectProperties );
+    EffectInstance InstantiateEffect( EffectHandle effectHandle );
+    EffectInstance InstantiateEffect( ParticleEffectProperties& effectProperties );
     void Update(ComputeContext& Context, float timeDelta );
     void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
-    void ResetEffect(EffectHandle EffectID);
-    float GetCurrentLife(EffectHandle EffectID);
+    void ResetEffect(EffectInstance& EffectID);
+    float GetCurrentLife(EffectInstance& EffectID);
+
+    // Accessors
+    ParticleEffect* GetEffect(EffectHandle effectType);
+
+    // Extended functionality
+    void DeActivateEffect(EffectInstance& EffectID);
+    uint32_t IsActive(EffectHandle poolEffectID);
+    void ClearActive();
 
     extern BoolVar Enable;
     extern BoolVar PauseSim;
@@ -44,3 +58,7 @@ namespace ParticleEffects
     extern bool Reproducible; //If you want to repro set to true. When true, effect uses the same set of random numbers each run
     extern UINT ReproFrame;
 } // namespace ParticleEffects
+namespace
+{
+    extern std::vector<ParticleEffect*> ParticleEffectsActive;
+}

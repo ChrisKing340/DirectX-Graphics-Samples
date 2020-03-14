@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <DXGIDebug.h>
+
 #include "PipelineState.h"
 #include "DescriptorHeap.h"
 #include "RootSignature.h"
@@ -73,6 +75,7 @@ namespace Graphics
     extern ComputePSO g_GenerateMipsLinearPSO[4];
     extern ComputePSO g_GenerateMipsGammaPSO[4];
 
+    // CHK 3-14-20 the lines below not in my previous library code
     enum eResolution { k720p, k900p, k1080p, k1440p, k1800p, k2160p };
 
     extern BoolVar s_EnableVSync;

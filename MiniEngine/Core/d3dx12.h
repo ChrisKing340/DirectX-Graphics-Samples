@@ -123,10 +123,10 @@ struct CD3DX12_BOX : public D3D12_BOX
         LONG Left,
         LONG Right )
     {
-        left = Left;
+        left = static_cast<UINT>(Left);
         top = 0;
         front = 0;
-        right = Right;
+        right = static_cast<UINT>(Right);
         bottom = 1;
         back = 1;
     }
@@ -136,11 +136,11 @@ struct CD3DX12_BOX : public D3D12_BOX
         LONG Right,
         LONG Bottom )
     {
-        left = Left;
-        top = Top;
+        left = static_cast<UINT>(Left);
+        top = static_cast<UINT>(Top);
         front = 0;
-        right = Right;
-        bottom = Bottom;
+        right = static_cast<UINT>(Right);
+        bottom = static_cast<UINT>(Bottom);
         back = 1;
     }
     explicit CD3DX12_BOX(
@@ -151,12 +151,12 @@ struct CD3DX12_BOX : public D3D12_BOX
         LONG Bottom,
         LONG Back )
     {
-        left = Left;
-        top = Top;
-        front = Front;
-        right = Right;
-        bottom = Bottom;
-        back = Back;
+        left = static_cast<UINT>(Left);
+        top = static_cast<UINT>(Top);
+        front = static_cast<UINT>(Front);
+        right = static_cast<UINT>(Right);
+        bottom = static_cast<UINT>(Bottom);
+        back = static_cast<UINT>(Back);
     }
 };
 inline bool operator==( const D3D12_BOX& l, const D3D12_BOX& r )
@@ -221,6 +221,8 @@ struct CD3DX12_DEPTH_STENCIL_DESC : public D3D12_DEPTH_STENCIL_DESC
 };
 
 //------------------------------------------------------------------------------------------------
+// Requires the Windows 10 Creators Update SDK (15063)
+#if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
 struct CD3DX12_DEPTH_STENCIL_DESC1 : public D3D12_DEPTH_STENCIL_DESC1
 {
     CD3DX12_DEPTH_STENCIL_DESC1() = default;
@@ -312,6 +314,7 @@ struct CD3DX12_DEPTH_STENCIL_DESC1 : public D3D12_DEPTH_STENCIL_DESC1
         return D;
     }
 };
+#endif // NTDDI_WIN10_RS2
 
 //------------------------------------------------------------------------------------------------
 struct CD3DX12_BLEND_DESC : public D3D12_BLEND_DESC
@@ -552,6 +555,7 @@ struct CD3DX12_CLEAR_VALUE : public D3D12_CLEAR_VALUE
         UINT8 stencil )
     {
         Format = format;
+        memset( &Color, 0, sizeof( Color ) );
         /* Use memcpy to preserve NAN values */
         memcpy( &DepthStencil.Depth, &depth, sizeof( depth ) );
         DepthStencil.Stencil = stencil;
@@ -575,6 +579,8 @@ struct CD3DX12_RANGE : public D3D12_RANGE
 };
 
 //------------------------------------------------------------------------------------------------
+// Requires the Windows 10 Creators Update SDK (15063)
+#if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
 struct CD3DX12_RANGE_UINT64 : public D3D12_RANGE_UINT64
 {
     CD3DX12_RANGE_UINT64() = default;
@@ -614,6 +620,7 @@ struct CD3DX12_SUBRESOURCE_RANGE_UINT64 : public D3D12_SUBRESOURCE_RANGE_UINT64
         Range.End = end;
     }
 };
+#endif // NTDDI_WIN10_RS2
 
 //------------------------------------------------------------------------------------------------
 struct CD3DX12_SHADER_BYTECODE : public D3D12_SHADER_BYTECODE
@@ -838,6 +845,7 @@ struct CD3DX12_TEXTURE_COPY_LOCATION : public D3D12_TEXTURE_COPY_LOCATION
     {
         pResource = pRes;
         Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        PlacedFootprint = {};
         SubresourceIndex = Sub;
     }
 }; 
@@ -1576,12 +1584,12 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : public D3D12_CPU_DESCRIPTOR_HANDLE
     }
     CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(INT offsetInDescriptors, UINT descriptorIncrementSize)
     { 
-        ptr += INT64(offsetInDescriptors) * UINT64(descriptorIncrementSize);
+        ptr = SIZE_T(INT64(ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
         return *this;
     }
     CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(INT offsetScaledByIncrementSize) 
     { 
-        ptr += offsetScaledByIncrementSize;
+        ptr = SIZE_T(INT64(ptr) + INT64(offsetScaledByIncrementSize));
         return *this;
     }
     bool operator==(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other) const
@@ -1610,12 +1618,12 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : public D3D12_CPU_DESCRIPTOR_HANDLE
     
     static inline void InitOffsetted(_Out_ D3D12_CPU_DESCRIPTOR_HANDLE &handle, _In_ const D3D12_CPU_DESCRIPTOR_HANDLE &base, INT offsetScaledByIncrementSize)
     {
-        handle.ptr = base.ptr + offsetScaledByIncrementSize;
+        handle.ptr = SIZE_T(INT64(base.ptr) + INT64(offsetScaledByIncrementSize));
     }
     
     static inline void InitOffsetted(_Out_ D3D12_CPU_DESCRIPTOR_HANDLE &handle, _In_ const D3D12_CPU_DESCRIPTOR_HANDLE &base, INT offsetInDescriptors, UINT descriptorIncrementSize)
     {
-        handle.ptr = static_cast<SIZE_T>(base.ptr + INT64(offsetInDescriptors) * UINT64(descriptorIncrementSize));
+        handle.ptr = SIZE_T(INT64(base.ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
     }
 };
 
@@ -1637,12 +1645,12 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : public D3D12_GPU_DESCRIPTOR_HANDLE
     }
     CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(INT offsetInDescriptors, UINT descriptorIncrementSize)
     { 
-        ptr += INT64(offsetInDescriptors) * UINT64(descriptorIncrementSize);
+        ptr = UINT64(INT64(ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
         return *this;
     }
     CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(INT offsetScaledByIncrementSize) 
     { 
-        ptr += offsetScaledByIncrementSize;
+        ptr = UINT64(INT64(ptr) + INT64(offsetScaledByIncrementSize));
         return *this;
     }
     inline bool operator==(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other) const
@@ -1671,12 +1679,12 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : public D3D12_GPU_DESCRIPTOR_HANDLE
     
     static inline void InitOffsetted(_Out_ D3D12_GPU_DESCRIPTOR_HANDLE &handle, _In_ const D3D12_GPU_DESCRIPTOR_HANDLE &base, INT offsetScaledByIncrementSize)
     {
-        handle.ptr = base.ptr + offsetScaledByIncrementSize;
+        handle.ptr = UINT64(INT64(base.ptr) + INT64(offsetScaledByIncrementSize));
     }
     
     static inline void InitOffsetted(_Out_ D3D12_GPU_DESCRIPTOR_HANDLE &handle, _In_ const D3D12_GPU_DESCRIPTOR_HANDLE &base, INT offsetInDescriptors, UINT descriptorIncrementSize)
     {
-        handle.ptr = static_cast<UINT64>(base.ptr + INT64(offsetInDescriptors) * UINT64(descriptorIncrementSize));
+        handle.ptr = UINT64(INT64(base.ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
     }
 };
 
@@ -1825,6 +1833,8 @@ inline bool operator!=( const D3D12_RESOURCE_DESC& l, const D3D12_RESOURCE_DESC&
 { return !( l == r ); }
 
 //------------------------------------------------------------------------------------------------
+// Requires the Windows 10 Fall Creators Update SDK (16299)
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
 struct CD3DX12_VIEW_INSTANCING_DESC : public D3D12_VIEW_INSTANCING_DESC
 {
     CD3DX12_VIEW_INSTANCING_DESC() = default;
@@ -1847,6 +1857,7 @@ struct CD3DX12_VIEW_INSTANCING_DESC : public D3D12_VIEW_INSTANCING_DESC
         Flags = InFlags;
     }
 };
+#endif // NTDDI_WIN10_RS3
 
 //------------------------------------------------------------------------------------------------
 // Row-by-row memcpy
@@ -1859,12 +1870,12 @@ inline void MemcpySubresource(
 {
     for (UINT z = 0; z < NumSlices; ++z)
     {
-        BYTE* pDestSlice = reinterpret_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
-        const BYTE* pSrcSlice = reinterpret_cast<const BYTE*>(pSrc->pData) + pSrc->SlicePitch * z;
+        auto pDestSlice = reinterpret_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
+        auto pSrcSlice = reinterpret_cast<const BYTE*>(pSrc->pData) + pSrc->SlicePitch * LONG_PTR(z);
         for (UINT y = 0; y < NumRows; ++y)
         {
             memcpy(pDestSlice + pDest->RowPitch * y,
-                   pSrcSlice + pSrc->RowPitch * y,
+                   pSrcSlice + pSrc->RowPitch * LONG_PTR(y),
                    RowSizeInBytes);
         }
     }
@@ -1881,7 +1892,7 @@ inline UINT64 GetRequiredIntermediateSize(
     UINT64 RequiredSize = 0;
     
     ID3D12Device* pDevice = nullptr;
-    pDestinationResource->GetDevice(__uuidof(*pDevice), reinterpret_cast<void**>(&pDevice));
+    pDestinationResource->GetDevice(IID_ID3D12Device, reinterpret_cast<void**>(&pDevice));
     pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, 0, nullptr, nullptr, nullptr, &RequiredSize);
     pDevice->Release();
     
@@ -1974,7 +1985,7 @@ inline UINT64 UpdateSubresources(
     
     auto Desc = pDestinationResource->GetDesc();
     ID3D12Device* pDevice = nullptr;
-    pDestinationResource->GetDevice(__uuidof(*pDevice), reinterpret_cast<void**>(&pDevice));
+    pDestinationResource->GetDevice(IID_ID3D12Device, reinterpret_cast<void**>(&pDevice));
     pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, IntermediateOffset, pLayouts, pNumRows, pRowSizesInBytes, &RequiredSize);
     pDevice->Release();
     
@@ -2002,7 +2013,7 @@ inline UINT64 UpdateSubresources(
     
     auto Desc = pDestinationResource->GetDesc();
     ID3D12Device* pDevice = nullptr;
-    pDestinationResource->GetDevice(__uuidof(*pDevice), reinterpret_cast<void**>(&pDevice));
+    pDestinationResource->GetDevice(IID_ID3D12Device, reinterpret_cast<void**>(&pDevice));
     pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, IntermediateOffset, Layouts, NumRows, RowSizesInBytes, &RequiredSize);
     pDevice->Release();
     
@@ -2145,6 +2156,8 @@ inline HRESULT D3DX12SerializeVersionedRootSignature(
 }
 
 //------------------------------------------------------------------------------------------------
+// Requires the Windows 10 Creators Update SDK (15063)
+#if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
 struct CD3DX12_RT_FORMAT_ARRAY : public D3D12_RT_FORMAT_ARRAY
 {
     CD3DX12_RT_FORMAT_ARRAY() = default;
@@ -2169,6 +2182,8 @@ struct CD3DX12_RT_FORMAT_ARRAY : public D3D12_RT_FORMAT_ARRAY
 struct DefaultSampleMask { operator UINT() { return UINT_MAX; } };
 struct DefaultSampleDesc { operator DXGI_SAMPLE_DESC() { return DXGI_SAMPLE_DESC{1, 0}; } };
 
+#pragma warning(push)
+#pragma warning(disable : 4324)
 template <typename InnerStructType, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type, typename DefaultArg = InnerStructType>
 class alignas(void*) CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT
 {
@@ -2178,10 +2193,13 @@ private:
 public:
     CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT() noexcept : _Type(Type), _Inner(DefaultArg()) {}
     CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT(InnerStructType const& i) : _Type(Type), _Inner(i) {}
-    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT& operator=(InnerStructType const& i) { _Inner = i; return *this; }
-    operator InnerStructType() const { return _Inner; }
+    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT& operator=(InnerStructType const& i) { _Type = Type; _Inner = i; return *this; }
+    operator InnerStructType const&() const { return _Inner; }
     operator InnerStructType&() { return _Inner; }
+    InnerStructType* operator&() { return &_Inner; }
+    InnerStructType const* operator&() const { return &_Inner; }
 };
+#pragma warning(pop)
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_PIPELINE_STATE_FLAGS,         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS>                             CD3DX12_PIPELINE_STATE_STREAM_FLAGS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< UINT,                               D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK>                         CD3DX12_PIPELINE_STATE_STREAM_NODE_MASK;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< ID3D12RootSignature*,               D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE>                    CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE;
@@ -2204,7 +2222,9 @@ typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_RT_FORMAT_ARRAY,         
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< DXGI_SAMPLE_DESC,                   D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC,    DefaultSampleDesc> CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_DESC;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< UINT,                               D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK,    DefaultSampleMask> CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_MASK;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_CACHED_PIPELINE_STATE,        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO>                        CD3DX12_PIPELINE_STATE_STREAM_CACHED_PSO;
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< CD3DX12_VIEW_INSTANCING_DESC,       D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING, CD3DX12_DEFAULT>  CD3DX12_PIPELINE_STATE_STREAM_VIEW_INSTANCING;
+#endif
 
 //------------------------------------------------------------------------------------------------
 // Stream Parser Helpers
@@ -2233,7 +2253,9 @@ struct ID3DX12PipelineParserCallbacks
     virtual void RTVFormatsCb(const D3D12_RT_FORMAT_ARRAY&) {}
     virtual void SampleDescCb(const DXGI_SAMPLE_DESC&) {}
     virtual void SampleMaskCb(UINT) {}
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
     virtual void ViewInstancingCb(const D3D12_VIEW_INSTANCING_DESC&) {}
+#endif
     virtual void CachedPSOCb(const D3D12_CACHED_PIPELINE_STATE&) {}
 
     // Error Callbacks
@@ -2244,6 +2266,8 @@ struct ID3DX12PipelineParserCallbacks
     virtual ~ID3DX12PipelineParserCallbacks() = default;
 };
 
+// Requires the Windows 10 Fall Creators Update SDK (16299)
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
 // CD3DX12_PIPELINE_STATE_STREAM1 Works on RS3+ (where there is a new view instancing subobject).  
 // Use CD3DX12_PIPELINE_STATE_STREAM for RS2+ support.
 struct CD3DX12_PIPELINE_STATE_STREAM1
@@ -2340,6 +2364,7 @@ struct CD3DX12_PIPELINE_STATE_STREAM1
         return D;
     }
 };
+#endif // NTDDI_WIN10_RS3
 
 // CD3DX12_PIPELINE_STATE_STREAM works on RS2+ but does not support new subobject(s) added in RS3+.
 // See CD3DX12_PIPELINE_STATE_STREAM1 for instance.
@@ -2436,7 +2461,11 @@ struct CD3DX12_PIPELINE_STATE_STREAM
 
 struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : public ID3DX12PipelineParserCallbacks
 {
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
     CD3DX12_PIPELINE_STATE_STREAM1 PipelineStream;
+#else
+    CD3DX12_PIPELINE_STATE_STREAM PipelineStream;
+#endif
     CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER() noexcept
         : SeenDSS(false)
     {
@@ -2485,7 +2514,9 @@ struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : public ID3DX12PipelineParser
     void RTVFormatsCb(const D3D12_RT_FORMAT_ARRAY& RTVFormats) override {PipelineStream.RTVFormats = RTVFormats;}
     void SampleDescCb(const DXGI_SAMPLE_DESC& SampleDesc) override {PipelineStream.SampleDesc = SampleDesc;}
     void SampleMaskCb(UINT SampleMask) override {PipelineStream.SampleMask = SampleMask;}
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
     void ViewInstancingCb(const D3D12_VIEW_INSTANCING_DESC& ViewInstancingDesc) override {PipelineStream.ViewInstancingDesc = CD3DX12_VIEW_INSTANCING_DESC(ViewInstancingDesc);}
+#endif
     void CachedPSOCb(const D3D12_CACHED_PIPELINE_STATE& CachedPSO) override {PipelineStream.CachedPSO = CachedPSO;}
 
 private:
@@ -2525,7 +2556,7 @@ inline HRESULT D3DX12ParsePipelineStream(const D3D12_PIPELINE_STATE_STREAM_DESC&
         {
             pCallbacks->ErrorUnknownSubobject(SubobjectType);
             return E_INVALIDARG;
-        } 
+        }
         if (SubobjectSeen[D3DX12GetBaseSubobjectType(SubobjectType)])
         {
             pCallbacks->ErrorDuplicateSubobject(SubobjectType);
@@ -2622,10 +2653,12 @@ inline HRESULT D3DX12ParsePipelineStream(const D3D12_PIPELINE_STATE_STREAM_DESC&
             pCallbacks->FlagsCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM::Flags)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM::Flags);
             break;
+#if defined(NTDDI_WIN10_RS3) && (NTDDI_VERSION >= NTDDI_WIN10_RS3)
         case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
             pCallbacks->ViewInstancingCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM1::ViewInstancingDesc)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM1::ViewInstancingDesc);
             break;
+#endif
         default:
             pCallbacks->ErrorUnknownSubobject(SubobjectType);
             return E_INVALIDARG;
@@ -2635,7 +2668,10 @@ inline HRESULT D3DX12ParsePipelineStream(const D3D12_PIPELINE_STATE_STREAM_DESC&
 
     return S_OK;
 }
+#endif // NTDDI_WIN10_RS2
 
+// Requires the Windows 10 October 2018 Update SDK (17763)
+#if defined(NTDDI_WIN10_RS5) && (NTDDI_VERSION >= NTDDI_WIN10_RS5)
 //------------------------------------------------------------------------------------------------
 inline bool operator==( const D3D12_CLEAR_VALUE &a, const D3D12_CLEAR_VALUE &b)
 {
@@ -2691,7 +2727,7 @@ inline bool operator==( const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &a, const D3D
 {
     if (a.cpuDescriptor.ptr != b.cpuDescriptor.ptr) return false;
     if (!(a.DepthBeginningAccess == b.DepthBeginningAccess)) return false;
-    if (!(a.StencilBeginningAccess == b.DepthBeginningAccess)) return false;
+    if (!(a.StencilBeginningAccess == b.StencilBeginningAccess)) return false;
     if (!(a.DepthEndingAccess == b.DepthEndingAccess)) return false;
     if (!(a.StencilEndingAccess == b.StencilEndingAccess)) return false;
     return true;
@@ -2871,8 +2907,8 @@ private:
     class SUBOBJECT_HELPER_BASE
     {
     public:
-        SUBOBJECT_HELPER_BASE() { Init(); };
-        virtual ~SUBOBJECT_HELPER_BASE() {};
+        SUBOBJECT_HELPER_BASE() { Init(); }
+        virtual ~SUBOBJECT_HELPER_BASE() {}
         virtual D3D12_STATE_SUBOBJECT_TYPE Type() const = 0;
         void AddToStateObject(CD3DX12_STATE_OBJECT_DESC& ContainingStateObject)
         {
@@ -3427,10 +3463,8 @@ private:
 };
 
 #endif // #ifndef D3DX12_NO_STATE_OBJECT_HELPERS
+#endif // NTDDI_WIN10_RS5
 
 #endif // defined( __cplusplus )
 
 #endif //__D3DX12_H__
-
-
-

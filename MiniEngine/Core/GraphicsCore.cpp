@@ -786,42 +786,28 @@ void Graphics::Present(void)
 
     g_CurrentBuffer = (g_CurrentBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
 
-    UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(s_FrameTime * 60.0f)) : 0;
 
-    s_SwapChain1->Present(PresentInterval, 0);
-
-    // Test robustness to handle spikes in CPU time
-    //if (s_DropRandomFrames)
-    //{
-    //    if (std::rand() % 25 == 0)
-    //        BusyLoopSleep(0.010);
-    //}
-
-    int64_t CurrentTick = SystemTime::GetCurrentTick();
-
+    float waitTime;
     if (s_EnableVSync)
     {
-        // With VSync enabled, the time step between frames becomes a multiple of 16.666 ms.  We need
-        // to add logic to vary between 1 and 2 (or 3 fields).  This delta time also determines how
-        // long the previous frame should be displayed (i.e. the present interval.)
-        s_FrameTime = (s_LimitTo30Hz ? 2.0f : 1.0f) / 60.0f;
+        waitTime = (s_LimitTo30Hz ? 2.0f : 1.0f) / 60.0f;
         if (s_DropRandomFrames)
         {
             if (std::rand() % 50 == 0)
-                s_FrameTime += (1.0f / 60.0f);
+                waitTime += (1.0f / 60.0f);
         }
     }
-    else
-    {
-        // When running free, keep the most recent total frame time as the time step for
-        // the next frame simulation.  This is not super-accurate, but assuming a frame
-        // time varies smoothly, it should be close enough.
-        s_FrameTime = (float)SystemTime::TimeBetweenTicks(s_FrameStartTick, CurrentTick);
-    }
+    UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(waitTime * 60.0f)) : 0;
+    s_SwapChain1->Present(PresentInterval, 0);
+
+    // real frame time
+    int64_t CurrentTick = SystemTime::GetCurrentTick();
+    s_FrameTime = (float)SystemTime::TimeBetweenTicks(s_FrameStartTick, CurrentTick);
+    if (s_FrameStartTick == 0.f) s_FrameTime = 1.0f / 60.0f; // start up handling
 
     s_FrameStartTick = CurrentTick;
-
     ++s_FrameIndex;
+
     TemporalEffects::Update((uint32_t)s_FrameIndex);
 
     SetNativeResolution();
